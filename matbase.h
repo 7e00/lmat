@@ -1,16 +1,18 @@
 #ifndef NARUTOACM_MAT_H_
 #define NARUTOACM_MAT_H_
 
+#include <assert.h>
+
 namespace narutoacm
 {
 // every matrix like object should herited this template base class
-template<typename derivedT>
+template<typename eT, typename ExprT>
 class MatrixBase
 {
 public:
-    inline const derivedT& Derived() const
+    inline const ExprT& Derived() const
     {
-        return static_cast<const derivedT&>(*this);
+        return static_cast<const ExprT&>(*this);
     }
 
     /*
@@ -31,10 +33,11 @@ public:
 
 // matrix, or matrix expression which can be access every element simplely
 // e.g. a+b.t() is "Simple Matrix"
-template<typename derivedT>
-class SimpleMatrixBase : public MatrixBase<derivedT>
+template<typename eT, typename derivedT>
+class SimpleMatrixBase : public MatrixBase<eT,derivedT>
 {
 };
+
 
 } // end of namespace narutoacm
 

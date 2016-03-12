@@ -7,8 +7,10 @@ template <typename eT>
 class Scalar;
 template <typename eT, int M, int N>
 class Matrix;
-template <typename eT, typename opT, typename ExprT1, typename ExprT2>
+template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
 class BinaryExpr;
+template <typename eT, int M, int N, typename opT, typename ExprT>
+class UnaryExpr;
 
 
 class OpAdd;
@@ -144,13 +146,23 @@ using helper::min;
 
 template <typename ExprT>
 struct element_type;
+template <typename eT>
+struct element_type<Scalar<eT>>
+{
+    typedef eT type;
+};
 template <typename eT, int M, int N>
 struct element_type<Matrix<eT,M,N>>
 {
     typedef eT type;
 };
-template <typename eT, typename opT, typename ExprT1, typename ExprT2>
-struct element_type<BinaryExpr<eT,opT,ExprT1,ExprT2>>
+template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
+struct element_type<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
+{
+    typedef eT type;
+};
+template <typename eT, int M, int N, typename opT, typename ExprT>
+struct element_type<UnaryExpr<eT,M,N,opT,ExprT>>
 {
     typedef eT type;
 };
@@ -169,41 +181,25 @@ struct cols<Matrix<eT,M,N>>
 {
     enum { value = N };
 };
-// mat+mat, mat-mat, mat .* mat, mat ./ mat
-template <typename eT, typename opT, typename ExprT1, typename ExprT2>
-struct rows<BinaryExpr<eT,opT,ExprT1,ExprT2>> : public assert<(rows<ExprT1>::value == 0 
-                                                                || rows<ExprT2>::value == 0
-                                                                || rows<ExprT1>::value == rows<ExprT2>::value)
-                                                                && (cols<ExprT1>::value == 0
-                                                                || cols<ExprT2>::value == 0
-                                                                || cols<ExprT1>::value == cols<ExprT2>::value)>
+template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
+struct rows<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
 {
-    enum { value = max<rows<ExprT1>::value, rows<ExprT2>::value>::result };
+    enum { value = M };
 };
-template <typename eT, typename opT, typename ExprT1, typename ExprT2>
-struct cols<BinaryExpr<eT,opT,ExprT1,ExprT2>> : public assert<(rows<ExprT1>::value == 0 
-                                                                || rows<ExprT2>::value == 0
-                                                                || rows<ExprT1>::value == rows<ExprT2>::value)
-                                                                && (cols<ExprT1>::value == 0
-                                                                || cols<ExprT2>::value == 0
-                                                                || cols<ExprT1>::value == cols<ExprT2>::value)>
+template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
+struct cols<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
 {
-    enum { value = max<cols<ExprT1>::value, cols<ExprT2>::value>::result };
+    enum { value = N };
 };
-// mat * mat
-template <typename eT, typename ExprT1, typename ExprT2>
-struct rows<BinaryExpr<eT,OpMul,ExprT1,ExprT2>> : public assert<cols<ExprT1>::value == 0
-                                                                || rows<ExprT2>::value == 0
-                                                                || cols<ExprT1>::value == rows<ExprT2>::value>
+template <typename eT, int M, int N, typename opT, typename ExprT>
+struct rows<UnaryExpr<eT,M,N,opT,ExprT>>
 {
-    enum { value = rows<ExprT1>::value };
+    enum { value = M };
 };
-template <typename eT, typename ExprT1, typename ExprT2>
-struct cols<BinaryExpr<eT,OpMul,ExprT1,ExprT2>> : public assert<cols<ExprT1>::value == 0
-                                                                || rows<ExprT2>::value == 0
-                                                                || cols<ExprT1>::value == rows<ExprT2>::value>
+template <typename eT, int M, int N, typename opT, typename ExprT>
+struct cols<UnaryExpr<eT,M,N,opT,ExprT>>
 {
-    enum { value = cols<ExprT2>::value };
+    enum { value = N };
 };
 
 template <typename ExprT>
@@ -213,15 +209,69 @@ struct matrix_expr_type<Matrix<eT,M,N>>
 {
     enum { value = 1 };
 };
-template <typename eT, typename opT, typename ExprT1, typename ExprT2>
-struct matrix_expr_type<BinaryExpr<eT,opT,ExprT1,ExprT2>>
+template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
+struct matrix_expr_type<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>> : public 
+                                                    assert<(rows<ExprT1>::value == 0
+                                                    || rows<ExprT2>::value == 0
+                                                    || rows<ExprT1>::value == rows<ExprT2>::value)
+                                                    && (M == 0
+                                                    || max<rows<ExprT1>::value,rows<ExprT2>::value>::result == 0
+                                                    || M == max<rows<ExprT1>::value,rows<ExprT2>::value>::result)
+                                                    && (cols<ExprT1>::value == 0
+                                                    || cols<ExprT2>::value == 0
+                                                    || cols<ExprT1>::value == cols<ExprT2>::value)
+                                                    && (N == 0
+                                                    || max<cols<ExprT1>::value,cols<ExprT2>::value>::result == 0
+                                                    || N == max<cols<ExprT1>::value,cols<ExprT2>::value>::result)>
 {
     enum { value = min<matrix_expr_type<ExprT1>::value, matrix_expr_type<ExprT2>::value>::result };
 };
-template <typename eT, typename ExprT1, typename ExprT2>
-struct matrix_expr_type<BinaryExpr<eT,OpMul,ExprT1,ExprT2>>
+template <typename eT, int M, int N,  typename ExprT1, typename SeT1>
+struct matrix_expr_type<BinaryExpr<eT,M,N,OpSMul,ExprT1,Scalar<SeT1>>> : public 
+                                                    assert<(M == 0
+                                                    || rows<ExprT1>::value == 0
+                                                    || M == rows<ExprT1>::value)
+                                                    && (N == 0
+                                                    || cols<ExprT1>::value == 0
+                                                    || N == cols<ExprT1>::value)>
+{
+    enum { value = matrix_expr_type<ExprT1>::value };
+};
+template <typename eT, int M, int N, typename ExprT1, typename ExprT2>
+struct matrix_expr_type<BinaryExpr<eT,M,N,OpMul,ExprT1,ExprT2>> : public
+                                                    assert<(cols<ExprT1>::value == 0
+                                                    || rows<ExprT2>::value == 0
+                                                    || cols<ExprT1>::value == rows<ExprT2>::value)
+                                                    && (M == 0
+                                                    || rows<ExprT1>::value == 0
+                                                    || M == rows<ExprT1>::value)
+                                                    && (N == 0
+                                                    || cols<ExprT2>::value == 0
+                                                    || N == cols<ExprT2>::value)>
 {
     enum { value = 0 };
+};
+template <typename eT, int M, int N, typename opT, typename ExprT>
+struct matrix_expr_type<UnaryExpr<eT,M,N,opT,ExprT>> : public
+                                                    assert<(M == 0
+                                                    || rows<ExprT>::value == 0
+                                                    || M == rows<ExprT>::value)
+                                                    && (N == 0
+                                                    || cols<ExprT>::value == 0
+                                                    || N == cols<ExprT>::value)>
+{
+    enum { value = matrix_expr_type<ExprT>::value };
+};
+template <typename eT, int M, int N, typename ExprT>
+struct matrix_expr_type<UnaryExpr<eT,M,N,OpTran,ExprT>> : public
+                                                    assert<(M == 0
+                                                    || cols<ExprT>::value == 0
+                                                    || M == cols<ExprT>::value)
+                                                    && (N == 0
+                                                    || rows<ExprT>::value == 0
+                                                    || N == rows<ExprT>::value)>
+{
+    enum { value = matrix_expr_type<ExprT>::value };
 };
 
 } // end of namespace narutoacm::meta

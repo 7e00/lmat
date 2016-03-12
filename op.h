@@ -65,8 +65,8 @@ protected:
     };
 
 protected:
-    template <typename eT, int M, int N, typename ExprT>
-    static bool is_ref_to_mat(const Matrix<eT,M,N> &mat, const MatrixBase<ExprT> &expr)
+    template <typename eT, int M, int N, typename expreT, typename ExprT>
+    static bool is_ref_to_mat(const Matrix<eT,M,N> &mat, const MatrixBase<expreT,ExprT> &expr)
     {
         return false;
     }
@@ -75,15 +75,15 @@ protected:
     {
         return (&mat == &expr);
     }
-    template <typename eT, int M, int N, typename eeT, typename opT, typename ExprT1, typename ExprT2>
-    static bool is_ref_to_mat(const Matrix<eT,M,N> &mat, const BinaryExpr<eeT,opT,ExprT1,ExprT2> &expr)
+    template <typename eT1, int M1, int N1, typename eT2, int M2, int N2, typename opT, typename ExprT1, typename ExprT2>
+    static bool is_ref_to_mat(const Matrix<eT1,M1,N1> &mat, const BinaryExpr<eT2,M2,N2,opT,ExprT1,ExprT2> &expr)
     {
         return is_ref_to_mat(mat, expr.expr1_) || is_ref_to_mat(mat, expr.expr2_);
     }
 
     // 0: no ref, 1: ref but ordered to mat, 2: ref and not ordered to mat
-    template <typename eT, int M, int N, typename ExprT>
-    static int relation_to_mat(const Matrix<eT,M,N> &mat, const MatrixBase<ExprT> &expr)
+    template <typename eT, int M, int N, typename expreT, typename ExprT>
+    static int relation_to_mat(const Matrix<eT,M,N> &mat, const MatrixBase<expreT,ExprT> &expr)
     {
         return 0;
     }
@@ -92,19 +92,19 @@ protected:
     {
         return ((void *)(&mat) == (void *)(&expr) ? 1 : 0);
     }
-    template <typename eT, int M, int N, typename eeT, typename opT, typename ExprT1, typename ExprT2>
-    static int relation_to_mat(const Matrix<eT,M,N> &mat, const BinaryExpr<eeT,opT,ExprT1,ExprT2> &expr)
+    template <typename eT1, int M1, int N1, typename eT2, int M2, int N2, typename opT, typename ExprT1, typename ExprT2>
+    static int relation_to_mat(const Matrix<eT1,M1,N1> &mat, const BinaryExpr<eT2,M2,N2,opT,ExprT1,ExprT2> &expr)
     {
         int ar = relation_to_mat(mat, expr.expr1_);
         return (ar == 2 ? ar : std::max(ar, relation_to_mat(mat, expr.expr2_)));
     }
-    template <typename eT, int M, int N, typename eeT, typename ExprT1, typename ExprT2>
-    static int relation_to_mat(const Matrix<eT,M,N> &mat, const BinaryExpr<eeT,OpSMul,ExprT1,ExprT2> &expr)
+    template <typename eT1, int M1, int N1, typename eT2, int M2, int N2, typename ExprT1, typename SeT2>
+    static int relation_to_mat(const Matrix<eT1,M1,N1> &mat, const BinaryExpr<eT2,M2,N2,OpSMul,ExprT1,Scalar<SeT2>> &expr)
     {
         return relation_to_mat(mat, expr.expr1_);
     }
-    template <typename eT, int M, int N, typename eeT, typename ExprT1, typename ExprT2>
-    static int relation_to_mat(const Matrix<eT,M,N> &mat, const BinaryExpr<eeT,OpMul,ExprT1,ExprT2> &expr)
+    template <typename eT1, int M1, int N1, typename eT2, int M2, int N2, typename ExprT1, typename ExprT2>
+    static int relation_to_mat(const Matrix<eT1,M1,N1> &mat, const BinaryExpr<eT2,M2,N2,OpMul,ExprT1,ExprT2> &expr)
     {
         return (is_ref_to_mat(mat, expr) ? 2 : 0);
     }
@@ -122,9 +122,10 @@ protected:
         for (int i = 0; i < expr.Elems(); ++i)
             data[i] = expr(i);
     }
-    template <typename eT, typename eeT, typename opT, typename ExprT1, typename ExprT2>
-    static void eval(eT *res, int len, const BinaryExpr<eeT,opT,ExprT1,ExprT2> &expr, Cache &cache)
+    template <typename eT, typename eeT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
+    static void eval(eT *res, int len, const BinaryExpr<eeT,M,N,opT,ExprT1,ExprT2> &expr, Cache &cache)
     {
+        assert(len >= expr.Elems());
         opT::eval(res, len, expr.Derived(), cache);
     }
     template <typename eT, int M, int N>
@@ -144,12 +145,10 @@ protected:
         eval(res.Data(), res.Capacity(), expr, cache);
     }
 
-    template <typename eT, int M, int N, typename eeT, typename opT, typename ExprT1, typename ExprT2>
-    static void eval(Matrix<eT,M,N> &mat, const BinaryExpr<eeT,opT,ExprT1,ExprT2> &expr, Cache &cache)
+    template <typename eT1, int M1, int N1, typename eT2, int M2, int N2, typename opT, typename ExprT1, typename ExprT2>
+    static void eval(Matrix<eT1,M1,N1> &mat, const BinaryExpr<eT2,M2,N2,opT,ExprT1,ExprT2> &expr, Cache &cache)
     {
-        assert<(M == 0 || rows<BinaryExpr<eeT,opT,ExprT1,ExprT2>>::value == 0 || M == rows<BinaryExpr<eeT,opT,ExprT1,ExprT2>>::value)
-            && (M == 0 || cols<BinaryExpr<eeT,opT,ExprT1,ExprT2>>::value == 0 || M == cols<BinaryExpr<eeT,opT,ExprT1,ExprT2>>::value)>();
-
+        assert<(M1 == 0 || M2 == 0 || M1 == M2) && (N1 == 0 || N2 == 0 || N1 == N2)>();
         opT::eval(mat, expr, cache);
     }
 
@@ -159,15 +158,15 @@ protected:
         return sizeof(eT) * expr.Elems();
     }
 
-    template <typename eT, typename opT, typename ExprT1, typename ExprT2>
-    static size_t get_cache_block_size(const BinaryExpr<eT,opT,ExprT1,ExprT2> &expr)
+    template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
+    static size_t get_cache_block_size(const BinaryExpr<eT,M,N,opT,ExprT1,ExprT2> &expr)
     {
         return std::max(sizeof(eT) * expr.Elems(), std::max(get_cache_block_size(expr.expr1_), get_cache_block_size(expr.expr2_)));
     }
 
 protected:
-    template <typename eT, int M, int N, typename ExprT>
-    Op(Matrix<eT,M,N> &mat, const MatrixBase<ExprT> &expr)
+    template <typename eT, int M, int N, typename expreT, typename ExprT>
+    Op(Matrix<eT,M,N> &mat, const MatrixBase<expreT,ExprT> &expr)
         : cache(get_cache_block_size(expr.Derived()))
     {
         eval(mat, expr.Derived(), cache);
@@ -178,29 +177,59 @@ private:
 };
 
 template <typename eT, int M, int N>
-template <typename ExprT>
-Matrix<eT,M,N>::Matrix(const MatrixBase<ExprT> &matexpr)
+template <typename expreT, typename ExprT>
+Matrix<eT,M,N>::Matrix(const MatrixBase<expreT,ExprT> &matexpr)
 {
     Op op(*this, matexpr.Derived());
 }
 template <typename eT, int M, int N>
-template <typename ExprT>
-Matrix<eT,M,N> &Matrix<eT,M,N>::operator=(const MatrixBase<ExprT> &matexpr)
+template <typename expreT, typename ExprT>
+Matrix<eT,M,N> &Matrix<eT,M,N>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
 {
     Op op(*this, matexpr.Derived());
 }
 
 template <typename eT>
-template <typename ExprT>
-Matrix<eT,0,0>::Matrix(const MatrixBase<ExprT> &matexpr)
+template <typename expreT, typename ExprT>
+Matrix<eT,0,0>::Matrix(const MatrixBase<expreT,ExprT> &matexpr)
     : data_(nullptr), capacity_(0), row_(0), col_(0)
 {
     Op op(*this, matexpr.Derived());
 }
 
 template <typename eT>
-template <typename ExprT>
-Matrix<eT,0,0> &Matrix<eT,0,0>::operator=(const MatrixBase<ExprT> &matexpr)
+template <typename expreT, typename ExprT>
+Matrix<eT,0,0> &Matrix<eT,0,0>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
+{
+    Op op(*this, matexpr.Derived());
+}
+
+template <typename eT, int M>
+template <typename expreT, typename ExprT>
+Matrix<eT,M,0>::Matrix(const MatrixBase<expreT,ExprT> &matexpr)
+    : data_(nullptr), capacity_(0), col_(0)
+{
+    Op op(*this, matexpr.Derived());
+}
+
+template <typename eT, int M>
+template <typename expreT, typename ExprT>
+Matrix<eT,M,0> &Matrix<eT,M,0>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
+{
+    Op op(*this, matexpr.Derived());
+}
+
+template <typename eT, int N>
+template <typename expreT, typename ExprT>
+Matrix<eT,0,N>::Matrix(const MatrixBase<expreT,ExprT> &matexpr)
+    : data_(nullptr), capacity_(0), row_(0)
+{
+    Op op(*this, matexpr.Derived());
+}
+
+template <typename eT, int N>
+template <typename expreT, typename ExprT>
+Matrix<eT,0,N> &Matrix<eT,0,N>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
 {
     Op op(*this, matexpr.Derived());
 }
