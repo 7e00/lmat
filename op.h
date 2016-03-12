@@ -1,6 +1,7 @@
 #ifndef NARUTOACM_OPFUNCS_H_
 #define NARUTOACM_OPFUNCS_H_
 
+#include <iostream>
 #include <algorithm>
 #include <assert.h>
 #include "matrix.h"
@@ -49,6 +50,7 @@ protected:
         {
             if (pool_.Empty())
             {
+                //std::cout << "add a block with size " << blocksize_ << std::endl;
                 pool_.Add(std::unique_ptr<Block>(new Block(blocksize_)));
             }
             return pool_.Acquire();
