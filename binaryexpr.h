@@ -73,6 +73,9 @@ class BinaryExpr : public BinaryExprHelper<eT,M,N,opT,ExprT1,ExprT2,matrix_expr_
 {
     friend opT;
     friend class Op;
+    template <typename feT, int fM, int fN, typename fopT, typename fexpreT1, typename fExprT1, typename fexpreT2, typename fExprT2>
+    friend BinaryExpr<feT,fM,fN,fopT,fExprT1,fExprT2> GenBinaryExpr(const MatrixBase<fexpreT1,fExprT1> &expr1, const MatrixBase<fexpreT2,fExprT2> &expr2);
+
 protected:
     BinaryExpr(const ExprT1 &expr1, const ExprT2 &expr2)
         : expr1_(expr1), expr2_(expr2)
@@ -103,6 +106,9 @@ class BinaryExpr<eT,M,0,opT,ExprT1,ExprT2> : public BinaryExprHelper<eT,M,0,opT,
 {
     friend opT;
     friend class Op;
+    template <typename feT, int fM, int fN, typename fopT, typename fexpreT1, typename fExprT1, typename fexpreT2, typename fExprT2>
+    friend BinaryExpr<feT,fM,fN,fopT,fExprT1,fExprT2> GenBinaryExpr(const MatrixBase<fexpreT1,fExprT1> &expr1, const MatrixBase<fexpreT2,fExprT2> &expr2);
+
 protected:
     BinaryExpr(const ExprT1 &expr1, const ExprT2 &expr2)
         : expr1_(expr1), expr2_(expr2)
@@ -135,6 +141,9 @@ class BinaryExpr<eT,0,N,opT,ExprT1,ExprT2> : public BinaryExprHelper<eT,0,N,opT,
 {
     friend opT;
     friend class Op;
+    template <typename feT, int fM, int fN, typename fopT, typename fexpreT1, typename fExprT1, typename fexpreT2, typename fExprT2>
+    friend BinaryExpr<feT,fM,fN,fopT,fExprT1,fExprT2> GenBinaryExpr(const MatrixBase<fexpreT1,fExprT1> &expr1, const MatrixBase<fexpreT2,fExprT2> &expr2);
+
 protected:
     BinaryExpr(const ExprT1 &expr1, const ExprT2 &expr2)
         : expr1_(expr1), expr2_(expr2)
@@ -167,6 +176,9 @@ class BinaryExpr<eT,0,0,opT,ExprT1,ExprT2> : public BinaryExprHelper<eT,0,0,opT,
 {
     friend opT;
     friend class Op;
+    template <typename feT, int fM, int fN, typename fopT, typename fexpreT1, typename fExprT1, typename fexpreT2, typename fExprT2>
+    friend BinaryExpr<feT,fM,fN,fopT,fExprT1,fExprT2> GenBinaryExpr(const MatrixBase<fexpreT1,fExprT1> &expr1, const MatrixBase<fexpreT2,fExprT2> &expr2);
+
 protected:
     BinaryExpr(const ExprT1 &expr1, const ExprT2 &expr2)
         : expr1_(expr1), expr2_(expr2)
@@ -195,6 +207,12 @@ protected:
     int row_;
     int col_;
 };
+
+template <typename eT, int M, int N, typename opT, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
+BinaryExpr<eT,M,N,opT,ExprT1,ExprT2> GenBinaryExpr(const MatrixBase<expreT1,ExprT1> &expr1, const MatrixBase<expreT2,ExprT2> &expr2)
+{
+    return BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>(expr1.Derived(), expr2.Derived());
+}
 
 } // end of namespace narutoacm
 #endif

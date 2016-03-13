@@ -15,7 +15,6 @@ public:
         return static_cast<const ExprT&>(*this);
     }
 
-    /*
     inline int Elems() const
     {
         return this->Derived().Elems();
@@ -28,7 +27,6 @@ public:
     {
         return this->Derived().Cols();
     }
-    */
 };
 
 // matrix, or matrix expression which can be access every element simplely
