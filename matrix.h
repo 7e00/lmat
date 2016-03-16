@@ -144,6 +144,10 @@ public:
     {
         mat.dump();
     }
+    ~Matrix()
+    {
+        dump();
+    }
     Matrix &operator=(const Matrix &mat)
     {
         if (this != &mat)
@@ -290,6 +294,10 @@ public:
     {
         mat.dump();
     }
+    ~Matrix()
+    {
+        dump();
+    }
     Matrix &operator=(const Matrix &mat)
     {
         if (this != &mat)
@@ -432,6 +440,10 @@ public:
         : data_(mat.data_), capacity_(mat.capacity_), row_(mat.row_)
     {
         mat.dump();
+    }
+    ~Matrix()
+    {
+        dump();
     }
     Matrix &operator=(const Matrix &mat)
     {

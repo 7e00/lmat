@@ -13,6 +13,7 @@ template <typename eT, int M, int N, typename opT, typename ExprT>
 class UnaryExpr;
 
 
+class Op;
 class OpAdd;
 class OpSub;
 class OpEMul; // element-wise multiplication
@@ -272,6 +273,39 @@ struct matrix_expr_type<UnaryExpr<eT,M,N,OpTran,ExprT>> : public
                                                     || N == rows<ExprT>::value)>
 {
     enum { value = matrix_expr_type<ExprT>::value };
+};
+
+template <typename opT, typename ExprT>
+struct operator_num;
+template <typename opT, typename eT, int M, int N>
+struct operator_num<opT,Matrix<eT,M,N>>
+{
+    enum { value = 1 };
+};
+template <typename opT, typename eT>
+struct operator_num<opT,Scalar<eT>>
+{
+    enum { value = 1 };
+};
+template <typename opT, typename eT, int M, int N, typename ExprT1, typename ExprT2>
+struct operator_num<opT,BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
+{
+    enum { value = operator_num<opT,ExprT1>::value + operator_num<opT,ExprT2>::value };
+};
+template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
+struct operator_num<Op,BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
+{
+    enum { value = operator_num<Op,ExprT1>::value + operator_num<Op,ExprT2>::value };
+};
+template <typename opT, typename eT, int M, int N, typename ExprT>
+struct operator_num<opT,UnaryExpr<eT,M,N,opT,ExprT>>
+{
+    enum { value = operator_num<opT,ExprT>::value };
+};
+template <typename eT, int M, int N, typename opT, typename ExprT>
+struct operator_num<Op,UnaryExpr<eT,M,N,opT,ExprT>>
+{
+    enum { value = operator_num<Op,ExprT>::value };
 };
 
 } // end of namespace narutoacm::meta
