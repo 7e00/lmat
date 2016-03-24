@@ -136,7 +136,7 @@ protected:
         {
             auto block = cache.Acquire();
             MatrixShell<eT2,rows<ExprT2>::value,cols<ExprT2>::value> ms((eT2 *)(block->ptr), block->size/sizeof(eT2));
-            eval(ms, expr.Derived(), cache, 0);
+            eval(ms, expr, cache, 0);
             eval(res, ms, cache, 0);
         }
         else
@@ -152,7 +152,7 @@ protected:
         assert<(rows<ExprT1>::value == 0 || M == 0 || rows<ExprT1>::value == M) 
         && (cols<ExprT1>::value == 0 || N == 0 || cols<ExprT1>::value == N)>();
         
-        opT::eval(res.Derived(), expr, cache, relation);
+        opT::eval(res, expr, cache, relation);
     }
 
     template <typename eT, typename ExprT>

@@ -61,15 +61,30 @@ protected:
 
         if (relation1 == 0 && relation2 == 0)
         {
-            if (is_same_type<eT,typename prio_type<eT,eT1>::result_type>::result)
+            if (is_same_type<eT,typename prio_type<eT, typename prio_type<eT1,eT2>::result_type>::result_type>::result)
             {
-                Op::eval(res, expr1.Derived(), cache, relation1);
+                if (operator_num<OpAdd,ExprT1>::value >= operator_num<OpAdd,ExprT2>::value)
+                {
+                    Op::eval(res, expr1.Derived(), cache, 0);
+                    for (int i = 0; i < expr2.Elems(); ++i)
+                        res(i) += expr2(i);
+                }
+                else
+                {
+                    Op::eval(res, expr2.Derived(), cache, 0);
+                    for (int i = 0; i < expr1.Elems(); ++i)
+                        res(i) += expr1(i);
+                }
+            }
+            else if (is_same_type<eT,typename prio_type<eT,eT1>::result_type>::result)
+            {
+                Op::eval(res, expr1.Derived(), cache, 0);
                 for (int i = 0; i < expr2.Elems(); ++i)
                     res(i) += expr2(i);
             }
             else if (is_same_type<eT,typename prio_type<eT,eT2>::result_type>::result)
             {
-                Op::eval(res, expr2.Derived(), cache, relation2);
+                Op::eval(res, expr2.Derived(), cache, 0);
                 for (int i = 0; i < expr1.Elems(); ++i)
                     res(i) += expr1(i);
             }
