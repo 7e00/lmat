@@ -22,7 +22,7 @@ template <typename eT, int M, int N>
 class Matrix;
 
 template <typename eT, int M, int N>
-class Matrix : public SimpleMatrixBase<eT,Matrix<eT,M,N>>
+class Matrix : public EntityMatrixBase<eT,Matrix<eT,M,N>>
 {
 public:
     Matrix() = default;
@@ -106,7 +106,7 @@ private:
 };
 
 template <typename eT>
-class Matrix<eT,0,0> : public SimpleMatrixBase<eT,Matrix<eT,0,0>>
+class Matrix<eT,0,0> : public EntityMatrixBase<eT,Matrix<eT,0,0>>
 {
 public:
     Matrix()
@@ -259,7 +259,7 @@ private:
 };
 
 template <typename eT, int M>
-class Matrix<eT,M,0> : public SimpleMatrixBase<eT,Matrix<eT,M,0>>
+class Matrix<eT,M,0> : public EntityMatrixBase<eT,Matrix<eT,M,0>>
 {
 public:
     Matrix()
@@ -406,7 +406,7 @@ private:
 };
 
 template <typename eT, int N>
-class Matrix<eT,0,N> : public SimpleMatrixBase<eT,Matrix<eT,0,N>>
+class Matrix<eT,0,N> : public EntityMatrixBase<eT,Matrix<eT,0,N>>
 {
 public:
     Matrix()

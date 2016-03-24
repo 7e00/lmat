@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include "matshell.h"
 #include "matrix.h"
 #include "binaryexpr.h"
 #include "op.h"
@@ -16,6 +17,7 @@ using meta::rows;
 using meta::cols;
 using meta::helper::max;
 using meta::helper::is_same_type;
+using meta::operator_num;
 
 class OpAdd : public Op
 {
@@ -51,368 +53,139 @@ protected:
         return T(expr.expr1_(r, c)) + T(expr.expr2_(r, c));
     }
 
-    template <typename eT, typename eT1, int M1, int N1, typename eT2, int M2, int N2>
-    static void add(eT *res, int len, const Matrix<eT1,M1,N1> &expr1, const Matrix<eT2,M2,N2> &expr2, Cache &cache)
+    template <typename eT, typename ExprT, typename eT1, typename ExprT1, typename eT2, typename ExprT2>
+    static void add(EntityMatrixBase<eT,ExprT> &res, const SimpleMatrixBase<eT1,ExprT1> &expr1, const SimpleMatrixBase<eT2,ExprT2> &expr2, Cache &cache, int relation1 = -1, int relation2 = -1)
     {
-        if (is_same_type<eT,typename prio_type<eT,eT1>::result_type>::result)
+        relation1 = (relation1 >= 0 ? relation1 : relation_to_mat(res, expr1.Derived()));
+        relation2 = (relation2 >= 0 ? relation2 : relation_to_mat(res, expr2.Derived()));
+
+        if (relation1 == 0 && relation2 == 0)
         {
-            Op::eval(res, len, expr1, cache);
-            auto ptr = expr2.Data();
-            for (int i = 0; i < expr2.Elems(); ++i)
-                res[i] += ptr[i];
+            if (is_same_type<eT,typename prio_type<eT,eT1>::result_type>::result)
+            {
+                Op::eval(res, expr1.Derived(), cache, relation1);
+                for (int i = 0; i < expr2.Elems(); ++i)
+                    res(i) += expr2(i);
+            }
+            else if (is_same_type<eT,typename prio_type<eT,eT2>::result_type>::result)
+            {
+                Op::eval(res, expr2.Derived(), cache, relation2);
+                for (int i = 0; i < expr1.Elems(); ++i)
+                    res(i) += expr1(i);
+            }
+            else
+            {
+                typedef typename prio_type<eT1,eT2>::result_type T;
+                res.SetShape(expr1.Rows(), expr1.Cols());
+                for (int i = 0; i < expr1.Elems(); ++i)
+                {
+                    res(i) = T(expr1(i)) + T(expr2(i));
+                }
+            }
         }
-        else if (is_same_type<eT,typename prio_type<eT,eT2>::result_type>::result)
+        else if (relation1 == 2 || relation2 == 2)
         {
-            Op::eval(res, len, expr2, cache);
-            auto ptr = expr1.Data();
+            typedef typename prio_type<eT1,eT2>::result_type T;
+            auto block = cache.Acquire();
+            MatrixShell<T,meta::rows<ExprT>::value,meta::cols<ExprT>::value> ms((T *)(block->ptr), block->size/sizeof(T));
+            add(ms, expr1.Derived(), expr2.Derived(), cache, 0, 0);
+            Op::eval(res, ms, cache, 0);
+        }
+        else
+        {
+            typedef typename prio_type<typename prio_type<eT,eT1>::result_type,eT2>::result_type T;
+            res.SetShape(expr1.Rows(), expr1.Cols());
             for (int i = 0; i < expr1.Elems(); ++i)
-                res[i] += ptr[i];
+                res(i) = T(expr1(i)) + T(expr2(i));
+        }
+    }
+    template <typename eT, typename ExprT, typename eT1, typename ExprT1, typename eT2, typename ExprT2>
+    static void add(EntityMatrixBase<eT,ExprT> &res, const MatrixBase<eT1,ExprT1> &expr1, const SimpleMatrixBase<eT2,ExprT2> &expr2, Cache &cache, int relation1 = -1, int relation2 = -1)
+    {
+        relation1 = (relation1 >= 0 ? relation1 : relation_to_mat(res, expr1.Derived()));
+        relation2 = (relation2 >= 0 ? relation2 : relation_to_mat(res, expr2.Derived()));
+
+        if (is_same_type<eT,typename prio_type<eT,eT1>::result_type>::result
+            && relation1 == 0 && relation2 == 0)
+        {
+            Op::eval(res, expr1.Derived(), cache, relation1);
+            add(res, res, expr2.Derived(), cache, 1, relation2);
         }
         else
         {
             typedef typename prio_type<eT1,eT2>::result_type T;
-            for (int i = 0; i < expr1.Elems(); ++i)
-                res[i] = T(expr1(i)) + T(expr2(i));
+            auto block = cache.Acquire();
+            MatrixShell<T,meta::rows<ExprT>::value,meta::cols<ExprT>::value> ms((T *)(block->ptr), block->size/sizeof(T));
+            add(ms, expr1.Derived(), expr2.Derived(), cache, 0, 0);
+            Op::eval(res, ms, cache, 0);
         }
     }
-
-    template <typename eT, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
-    static void add(eT *res, int len, const SimpleMatrixBase<expreT1,ExprT1> &expr1, const SimpleMatrixBase<expreT2,ExprT2> &expr2, Cache &cache)
+    template <typename eT, typename ExprT, typename eT1, typename ExprT1, typename eT2, typename ExprT2>
+    static void add(EntityMatrixBase<eT,ExprT> &res, const SimpleMatrixBase<eT1,ExprT1> &expr1, const MatrixBase<eT2,ExprT2> &expr2, Cache &cache, int relation1 = -1, int relation2 = -1)
     {
-        auto &mat1 = expr1.Derived();
-        auto &mat2 = expr2.Derived();
+        add(res, expr2.Derived(), expr1.Derived(), cache, relation2, relation1);
+    }
+    template <typename eT, typename ExprT, typename eT1, typename ExprT1, typename eT2, typename ExprT2>
+    static void add(EntityMatrixBase<eT,ExprT> &res, const MatrixBase<eT1,ExprT1> &expr1, const MatrixBase<eT2,ExprT2> &expr2, Cache &cache, int relation1 = -1, int relation2 = -1)
+    {
+        relation1 = (relation1 >= 0 ? relation1 : relation_to_mat(res, expr1.Derived()));
+        relation2 = (relation2 >= 0 ? relation2 : relation_to_mat(res, expr2.Derived()));
         
-        if (is_same_type<eT,typename prio_type<eT,expreT1>::result_type>::result)
+        if (relation1 == 0 && relation2 == 0)
         {
-            Op::eval(res, len, mat1, cache);
-            for (int i = 0; i < mat2.Elems(); ++i)
-                res[i] += mat2(i);
-        }
-        else if (is_same_type<eT,typename prio_type<eT,expreT2>::result_type>::result)
-        {
-            Op::eval(res, len, mat2, cache);
-            for (int i = 0; i < mat1.Elems(); ++i)
-                res[i] += mat1(i);
-        }
-        else
-        {
-            typedef typename prio_type<expreT1,expreT2>::result_type T;
-            for (int i = 0; i < mat1.Elems(); ++i)
-                res[i] = T(mat1(i)) + T(mat2(i));
-        }
-    }
-
-    template <typename eT, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
-    static void add(eT *res, int len, const MatrixBase<expreT1,ExprT1> &expr1, const SimpleMatrixBase<expreT2,ExprT2> &expr2, Cache &cache)
-    {
-        auto &mat1 = expr1.Derived();
-        auto &mat2 = expr2.Derived();
-        
-        if (is_same_type<eT,typename prio_type<eT,expreT1>::result_type>::result)
-        {
-            Op::eval(res, len, mat1, cache);
-            for (int i = 0; i < mat2.Elems(); ++i)
-                res[i] += mat2(i);
-        }
-        else
-        {
-            typedef typename prio_type<expreT1,expreT2>::result_type T;
-            auto block = cache.Acquire();
-            add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-            auto ptr = (T *)(block->ptr);
-            for (int i = 0; i < mat1.Elems(); ++i)
-                res[i] = ptr[i];
-        }
-    }
-
-    template <typename eT, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
-    static void add(eT *res, int len, const SimpleMatrixBase<expreT1,ExprT1> &expr1, const MatrixBase<expreT2,ExprT2> &expr2, Cache &cache)
-    {
-        auto &mat1 = expr1.Derived();
-        auto &mat2 = expr2.Derived();
-        
-        if (is_same_type<eT,typename prio_type<eT,expreT2>::result_type>::result)
-        {
-            Op::eval(res, len, mat2, cache);
-            for (int i = 0; i < mat1.Elems(); ++i)
-                res[i] += mat1(i);
-        }
-        else
-        {
-            typedef typename prio_type<expreT1,expreT2>::result_type T;
-            auto block = cache.Acquire();
-            add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-            auto ptr = (T *)(block->ptr);
-            for (int i = 0; i < mat1.Elems(); ++i)
-                res[i] = ptr[i];
-        }
-    }
-
-    template <typename eT, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
-    static void add(eT *res, int len, const MatrixBase<expreT1,ExprT1> &expr1, const MatrixBase<expreT2,ExprT2> &expr2, Cache &cache)
-    {
-        auto &mat1 = expr1.Derived();
-        auto &mat2 = expr2.Derived();
-        
-        if (is_same_type<eT,typename prio_type<eT,expreT1>::result_type>::result)
-        {
-            Op::eval(res, len, mat1, cache);
-            auto block = cache.Acquire();
-            Op::eval((expreT2 *)(block->ptr), block->size / sizeof(expreT2), mat2, cache);
-            expreT2 *ptr = (expreT2 *)(block->ptr);
-            for (int i = 0; i < mat2.Elems(); ++i)
-                res[i] += ptr[i];
-        }
-        else if (is_same_type<eT,typename prio_type<eT,expreT2>::result_type>::result)
-        {
-            Op::eval(res, len, mat2, cache);
-            auto block = cache.Acquire();
-            Op::eval((expreT1 *)(block->ptr), block->size / sizeof(expreT1), mat1, cache);
-            auto *ptr = (expreT1 *)(block->ptr);
-            for (int i = 0; i < mat1.Elems(); ++i)
-                res[i] += ptr[i];
-        }
-        else
-        {
-            typedef typename prio_type<expreT1,expreT2>::result_type T;
-            auto block = cache.Acquire();
-            add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-            auto ptr = (T *)(block->ptr);
-            for (int i = 0; i < mat1.Elems(); ++i)
-                res[i] = ptr[i];
-        }
-    }
-
-    template <typename eT, int M, int N, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
-    static void add(Matrix<eT,M,N> &res, const SimpleMatrixBase<expreT1,ExprT1> &expr1, const SimpleMatrixBase<expreT2,ExprT2> &expr2, Cache &cache)
-    {
-        auto &mat1 = expr1.Derived();
-        auto &mat2 = expr2.Derived();
-
-        int ar = relation_to_mat(res, mat1);
-        int br = relation_to_mat(res, mat2);
-
-        if (ar == 0 && br == 0)
-        {
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            add(res.Data(), res.Capacity(), mat1, mat2, cache);
-        }
-        else if (ar == 2 || br == 2)
-        {
-            typedef typename prio_type<typename prio_type<eT,expreT1>::result_type,expreT2>::result_type T;
-            auto block = cache.Acquire();
-            add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            auto ptr = (T *)(block->ptr);
-            if (is_same_type<eT,T>::result)
+            if (operator_num<OpAdd,ExprT1>::value >= operator_num<OpAdd,ExprT2>::value)
             {
-                memcpy(res.Data(), ptr, res.Elems()*sizeof(eT));
-            }
-            else
-            {
-                auto resptr = res.Data();
-                for (int i = 0; i < mat1.Elems(); ++i)
-                    resptr[i] = ptr[i];
-            }
-        }
-        else // res's shape must already ok
-        {
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            auto resptr = res.Data();
-            typedef typename prio_type<expreT1,expreT2>::result_type T;
-            for (int i = 0; i < mat1.Elems(); ++i)
-                resptr[i] = T(mat1(i)) + T(mat2(i));
-        }
-    }
-
-    template <typename eT, int M, int N, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
-    static void add(Matrix<eT,M,N> &res, const MatrixBase<expreT1,ExprT1> &expr1, const SimpleMatrixBase<expreT2,ExprT2> &expr2, Cache &cache)
-    {
-        auto &mat1 = expr1.Derived();
-        auto &mat2 = expr2.Derived();
-
-        int ar = relation_to_mat(res, mat1);
-        int br = relation_to_mat(res, mat2);
-
-        if (ar == 0 && br == 0)
-        {
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            add(res.Data(), res.Capacity(), mat1, mat2, cache);
-        }
-        else if (br == 2)
-        {
-            typedef typename prio_type<typename prio_type<eT,expreT1>::result_type,expreT2>::result_type T;
-            auto block = cache.Acquire();
-            add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            auto ptr = (T *)(block->ptr);
-            if (is_same_type<eT,T>::result)
-            {
-                memcpy(res.Data(), ptr, res.Elems()*sizeof(eT));
-            }
-            else
-            {
-                auto resptr = res.Data();
-                for (int i = 0; i < mat1.Elems(); ++i)
-                    resptr[i] = ptr[i];
-            }
-        }
-        else
-        {
-            typedef typename prio_type<expreT1,expreT2>::result_type T;
-            auto block = cache.Acquire();
-            Op::eval((expreT1 *)(block->ptr), block->size / sizeof(expreT1), mat1, cache);
-            res.SetShape(mat2.Rows(), mat2.Cols());
-            auto ptr = (expreT1 *)(block->ptr);
-            auto resptr = res.Data();
-            for (int i = 0; i < mat2.Elems(); ++i)
-                resptr[i] = T(ptr[i]) + T(mat2(i));
-        }
-    }
-
-    template <typename eT, int M, int N, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
-    static void add(Matrix<eT,M,N> &res, const SimpleMatrixBase<expreT1,ExprT1> &expr1, const MatrixBase<expreT2,ExprT2> &expr2, Cache &cache)
-    {
-        auto &mat1 = expr1.Derived();
-        auto &mat2 = expr2.Derived();
-
-        int ar = relation_to_mat(res, mat1);
-        int br = relation_to_mat(res, mat2);
-
-        if (ar == 0 && br == 0)
-        {
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            add(res.Data(), res.Capacity(), mat1, mat2, cache);
-        }
-        else if (ar == 2)
-        {
-            typedef typename prio_type<typename prio_type<eT,expreT1>::result_type,expreT2>::result_type T;
-            auto block = cache.Acquire();
-            add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            auto ptr = (T *)(block->ptr);
-            if (is_same_type<eT,T>::result)
-            {
-                memcpy(res.Data(), ptr, res.Elems()*sizeof(eT));
-            }
-            else
-            {
-                auto resptr = res.Data();
-                for (int i = 0; i < mat1.Elems(); ++i)
-                    resptr[i] = ptr[i];
-            }
-        }
-        else
-        {
-            typedef typename prio_type<expreT1,expreT2>::result_type T;
-            auto block = cache.Acquire();
-            Op::eval((expreT2 *)(block->ptr), block->size / sizeof(expreT2), mat2, cache);
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            auto ptr = (expreT2 *)(block->ptr);
-            auto resptr = res.Data();
-            for (int i = 0; i < mat2.Elems(); ++i)
-                resptr[i] = T(mat1(i)) + T(ptr[i]);
-        }
-    }
-
-    template <typename eT, int M, int N, typename expreT1, typename ExprT1, typename expreT2, typename ExprT2>
-    static void add(Matrix<eT,M,N> &res, const MatrixBase<expreT1,ExprT1> &expr1, const MatrixBase<expreT2,ExprT2> &expr2, Cache &cache)
-    {
-        auto &mat1 = expr1.Derived();
-        auto &mat2 = expr2.Derived();
-
-        int ar = relation_to_mat(res, mat1);
-        int br = relation_to_mat(res, mat2);
-
-        if (ar == 0 && br == 0)
-        {
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            add(res.Data(), res.Capacity(), mat1, mat2, cache);
-        }
-        else if (ar == 0)
-        {
-            if (is_same_type<eT,typename prio_type<eT,expreT1>::result_type>::result)
-            {
+                Op::eval(res, expr1.Derived(), cache, 0);
                 auto block = cache.Acquire();
-                Op::eval((expreT2 *)(block->ptr), block->size / sizeof(expreT2), mat2, cache);
-                res.SetShape(mat1.Rows(), mat1.Cols());
-                Op::eval(res.Data(), res.Capacity(), mat1, cache);
-                auto ptr = (expreT2 *)(block->ptr);
-                auto resptr = res.Data();
-                for (int i = 0; i < res.Elems(); ++i)
-                    resptr[i] += ptr[i];
+                MatrixShell<eT2,meta::rows<ExprT2>::value,meta::cols<ExprT2>::value> ms((eT2 *)(block->ptr), block->size/sizeof(eT2));
+                Op::eval(ms, expr2.Derived(), cache, 0);
+                add(res, res, ms, cache, 1, 0);
             }
             else
             {
-                typedef typename prio_type<expreT1,expreT2>::result_type T;
+                Op::eval(res, expr2.Derived(), cache, 0);
                 auto block = cache.Acquire();
-                add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-                res.SetShape(mat1.Rows(), mat1.Cols());
-                auto ptr = (T *)(block->ptr);
-                auto resptr = res.Data();
-                for (int i = 0; i < mat1.Elems(); ++i)
-                    resptr[i] = ptr[i];
+                MatrixShell<eT1,meta::rows<ExprT1>::value,meta::cols<ExprT1>::value> ms((eT1 *)(block->ptr), block->size/sizeof(eT1));
+                Op::eval(ms, expr1.Derived(), cache, 0);
+                add(res, ms, res, cache, 0, 1);
             }
         }
-        else if (br == 0)
+        else if (relation2 == 0 && is_same_type<eT,typename prio_type<eT,eT2>::result_type>::result)
         {
-            if (is_same_type<eT,typename prio_type<eT,expreT2>::result_type>::result)
-            {
-                auto block = cache.Acquire();
-                Op::eval((expreT1 *)(block->ptr), block->size / sizeof(expreT1), mat1, cache);
-                res.SetShape(mat2.Rows(), mat2.Cols());
-                Op::eval(res.Data(), res.Capacity(), mat2, cache);
-                auto ptr = (expreT1 *)(block->ptr);
-                auto resptr = res.Data();
-                for (int i = 0; i < res.Elems(); ++i)
-                    resptr[i] += ptr[i];
-            }
-            else
-            {
-                typedef typename prio_type<expreT1,expreT2>::result_type T;
-                auto block = cache.Acquire();
-                add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-                res.SetShape(mat1.Rows(), mat1.Cols());
-                auto ptr = (T *)(block->ptr);
-                auto resptr = res.Data();
-                for (int i = 0; i < mat2.Elems(); ++i)
-                    resptr[i] = ptr[i];
-            }
+            auto block = cache.Acquire();
+            MatrixShell<eT1,meta::rows<ExprT1>::value,meta::cols<ExprT1>::value> ms((eT1 *)(block->ptr), block->size/sizeof(eT1));
+            Op::eval(ms, expr1.Derived(), cache, 0);
+            Op::eval(res, expr2.Derived(), cache, 0);
+            add(res, ms, res, cache, 0, 1);
+        }
+        else if (relation1 == 0 && is_same_type<eT,typename prio_type<eT,eT1>::result_type>::result)
+        {
+            auto block = cache.Acquire();
+            MatrixShell<eT2,meta::rows<ExprT2>::value,meta::cols<ExprT2>::value> ms((eT2 *)(block->ptr), block->size/sizeof(eT2));
+            Op::eval(ms, expr2.Derived(), cache, 0);
+            Op::eval(res, expr1.Derived(), cache, 0);
+            add(res, res, ms, cache, 1, 0);
         }
         else
         {
-            typedef typename prio_type<typename prio_type<eT,expreT1>::result_type,expreT2>::result_type T;
+            typedef typename prio_type<eT1,eT2>::result_type T;
             auto block = cache.Acquire();
-            add((T *)(block->ptr), block->size / sizeof(T), mat1, mat2, cache);
-            res.SetShape(mat1.Rows(), mat1.Cols());
-            auto ptr = (T *)(block->ptr);
-            if (is_same_type<eT,T>::result)
-            {
-                memcpy(res.Data(), ptr, res.Elems()*sizeof(eT));
-            }
-            else
-            {
-                auto resptr = res.Data();
-                for (int i = 0; i < mat1.Elems(); ++i)
-                    resptr[i] = ptr[i];
-            }
+            MatrixShell<T,meta::rows<ExprT>::value,meta::cols<ExprT>::value> ms((T *)(block->ptr), block->size/sizeof(T));
+            add(ms, expr1, expr2.Derived(), cache, 0, 0);
+            Op::eval(res, ms, cache, 0);
         }
     }
 
-    template <typename eT1, typename eT2, int M, int N, typename ExprT1, typename ExprT2>
-    static void eval(eT1 *res, int len, const BinaryExpr<eT2,M,N,OpAdd,ExprT1,ExprT2> &expr, Cache &cache)
+    template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename ExprT3>
+    static void eval(EntityMatrixBase<eT1,ExprT1> &res, const BinaryExpr<eT2,M,N,OpAdd,ExprT2,ExprT3> &expr, Cache &cache, int relation = -1)
     {
-        add(res, len, expr.expr1_, expr.expr2_, cache);
-    }
-    template <typename eT1, int M1, int N1, typename eT2, int M2, int N2, typename ExprT1, typename ExprT2>
-    static void eval(Matrix<eT1,M1,N1> &res, const BinaryExpr<eT2,M2,N2,OpAdd,ExprT1,ExprT2> &expr, Cache &cache)
-    {
-        add(res, expr.expr1_, expr.expr2_, cache);
+        relation = (relation == 0 ? 0 : -1);
+        add(res, expr.expr1_, expr.expr2_, cache, relation, relation);
     }
     
 protected:
-    template <typename eT1, int M1, int N1, typename eT2, int M2, int N2, typename ExprT1, typename ExprT2>
-    OpAdd(Matrix<eT1,M1,N1> &mat, const BinaryExpr<eT2,M2,N2,OpAdd,ExprT1,ExprT2> &expr)
+    template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename ExprT3>
+    OpAdd(EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,OpAdd,ExprT2,ExprT3> &expr)
         : Op(mat, expr)
     {
     }

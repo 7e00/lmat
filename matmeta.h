@@ -7,6 +7,8 @@ template <typename eT>
 class Scalar;
 template <typename eT, int M, int N>
 class Matrix;
+template <typename eT, int M, int N>
+class MatrixShell;
 template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
 class BinaryExpr;
 template <typename eT, int M, int N, typename opT, typename ExprT>
@@ -157,6 +159,11 @@ struct element_type<Matrix<eT,M,N>>
 {
     typedef eT type;
 };
+template <typename eT, int M, int N>
+struct element_type<MatrixShell<eT,M,N>>
+{
+    typedef eT type;
+};
 template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
 struct element_type<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
 {
@@ -175,32 +182,42 @@ struct cols;
 template <typename eT, int M, int N>
 struct rows<Matrix<eT,M,N>>
 {
-    enum { value = M };
+    static const int value = M;
 };
 template <typename eT, int M, int N>
 struct cols<Matrix<eT,M,N>>
 {
-    enum { value = N };
+    static const int value = N;
+};
+template <typename eT, int M, int N>
+struct rows<MatrixShell<eT,M,N>>
+{
+    static const int value = M;
+};
+template <typename eT, int M, int N>
+struct cols<MatrixShell<eT,M,N>>
+{
+    static const int value = N;
 };
 template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
 struct rows<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
 {
-    enum { value = M };
+    static const int value = M;
 };
 template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
 struct cols<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
 {
-    enum { value = N };
+    static const int value = N;
 };
 template <typename eT, int M, int N, typename opT, typename ExprT>
 struct rows<UnaryExpr<eT,M,N,opT,ExprT>>
 {
-    enum { value = M };
+    static const int value = M;
 };
 template <typename eT, int M, int N, typename opT, typename ExprT>
 struct cols<UnaryExpr<eT,M,N,opT,ExprT>>
 {
-    enum { value = N };
+    static const int value = N;
 };
 
 template <typename ExprT>
@@ -208,7 +225,7 @@ struct matrix_expr_type;
 template <typename eT, int M, int N>
 struct matrix_expr_type<Matrix<eT,M,N>>
 {
-    enum { value = 1 };
+    enum { value = 2 };
 };
 template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
 struct matrix_expr_type<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>> : public 
@@ -225,7 +242,8 @@ struct matrix_expr_type<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>> : public
                                                     || max<cols<ExprT1>::value,cols<ExprT2>::value>::result == 0
                                                     || N == max<cols<ExprT1>::value,cols<ExprT2>::value>::result)>
 {
-    enum { value = min<matrix_expr_type<ExprT1>::value, matrix_expr_type<ExprT2>::value>::result };
+    //enum { value = min<min<1,matrix_expr_type<ExprT1>::value>::result, matrix_expr_type<ExprT2>::value>::result };
+    enum { value = 0 };
 };
 template <typename eT, int M, int N,  typename ExprT1, typename SeT1>
 struct matrix_expr_type<BinaryExpr<eT,M,N,OpSMul,ExprT1,Scalar<SeT1>>> : public 
@@ -236,7 +254,7 @@ struct matrix_expr_type<BinaryExpr<eT,M,N,OpSMul,ExprT1,Scalar<SeT1>>> : public
                                                     || cols<ExprT1>::value == 0
                                                     || N == cols<ExprT1>::value)>
 {
-    enum { value = matrix_expr_type<ExprT1>::value };
+    enum { value = min<1, matrix_expr_type<ExprT1>::value>::result };
 };
 template <typename eT, int M, int N, typename ExprT1, typename ExprT2>
 struct matrix_expr_type<BinaryExpr<eT,M,N,OpMul,ExprT1,ExprT2>> : public
@@ -261,7 +279,7 @@ struct matrix_expr_type<UnaryExpr<eT,M,N,opT,ExprT>> : public
                                                     || cols<ExprT>::value == 0
                                                     || N == cols<ExprT>::value)>
 {
-    enum { value = matrix_expr_type<ExprT>::value };
+    enum { value = 0 };
 };
 template <typename eT, int M, int N, typename ExprT>
 struct matrix_expr_type<UnaryExpr<eT,M,N,OpTran,ExprT>> : public
@@ -272,7 +290,7 @@ struct matrix_expr_type<UnaryExpr<eT,M,N,OpTran,ExprT>> : public
                                                     || rows<ExprT>::value == 0
                                                     || N == rows<ExprT>::value)>
 {
-    enum { value = matrix_expr_type<ExprT>::value };
+    enum { value = min<1, matrix_expr_type<ExprT>::value>::result };
 };
 
 template <typename opT, typename ExprT>
@@ -280,32 +298,37 @@ struct operator_num;
 template <typename opT, typename eT, int M, int N>
 struct operator_num<opT,Matrix<eT,M,N>>
 {
-    enum { value = 1 };
+    static const int value = 1;
+};
+template <typename opT, typename eT, int M, int N>
+struct operator_num<opT,MatrixShell<eT,M,N>>
+{
+    static const int value = 1;
 };
 template <typename opT, typename eT>
 struct operator_num<opT,Scalar<eT>>
 {
-    enum { value = 1 };
+    static const int value = 1;
 };
 template <typename opT, typename eT, int M, int N, typename ExprT1, typename ExprT2>
 struct operator_num<opT,BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
 {
-    enum { value = operator_num<opT,ExprT1>::value + operator_num<opT,ExprT2>::value };
+    static const int value = operator_num<opT,ExprT1>::value + operator_num<opT,ExprT2>::value;
 };
 template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
 struct operator_num<Op,BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
 {
-    enum { value = operator_num<Op,ExprT1>::value + operator_num<Op,ExprT2>::value };
+    static const int value = operator_num<Op,ExprT1>::value + operator_num<Op,ExprT2>::value;
 };
 template <typename opT, typename eT, int M, int N, typename ExprT>
 struct operator_num<opT,UnaryExpr<eT,M,N,opT,ExprT>>
 {
-    enum { value = operator_num<opT,ExprT>::value };
+    static const int value = operator_num<opT,ExprT>::value;
 };
 template <typename eT, int M, int N, typename opT, typename ExprT>
 struct operator_num<Op,UnaryExpr<eT,M,N,opT,ExprT>>
 {
-    enum { value = operator_num<Op,ExprT>::value };
+    static const int value = operator_num<Op,ExprT>::value;
 };
 
 } // end of namespace narutoacm::meta

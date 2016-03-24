@@ -23,17 +23,17 @@ protected:
 public:
     eT operator()(int idx) const
     {
-        calres();
+        const_cast<BinaryExprHelper<eT,M,N,opT,ExprT1,ExprT2,0> *>(this)->calres();
         return (*res_)(idx);
     } 
     eT operator()(int r, int c) const
     {
-        calres();
+        const_cast<BinaryExprHelper<eT,M,N,opT,ExprT1,ExprT2,0> *>(this)->calres();
         return (*res_)(r, c);
     }
 
 private:
-    void calres() const
+    void calres()
     {
         if (!res_)
         {
@@ -95,6 +95,7 @@ public:
     {
         return N;
     }
+    
 
 protected:
     typename select_type<is_same_type<ExprT1,Scalar<typename element_type<ExprT1>::type>>::result, const ExprT1, const ExprT1&>::result_type expr1_;
