@@ -15,6 +15,8 @@ private:
     class External_Deleter
     {
     public:
+        External_Deleter()
+        {}
         explicit External_Deleter(std::weak_ptr<SharedPool<T>* > pool)
             : pool_(pool) {}
 

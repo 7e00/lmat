@@ -45,8 +45,6 @@ public:
     }
 
     template <typename expreT, typename ExprT>
-    MatrixShell(const MatrixBase<expreT,ExprT> &matexpr);
-    template <typename expreT, typename ExprT>
     MatrixShell &operator=(const MatrixBase<expreT, ExprT> &matexpr);
 
     int Elems() const
@@ -133,8 +131,6 @@ public:
     MatrixShell(const MatrixShell &mat) = default;
     MatrixShell &operator=(const MatrixShell &mat) = default;
 
-    template <typename expreT, typename ExprT>
-    MatrixShell(const MatrixBase<expreT, ExprT> &matexpr);
     template <typename expreT, typename ExprT>
     MatrixShell &operator=(const MatrixBase<expreT, ExprT> &matexpr);
 
@@ -245,8 +241,6 @@ public:
     }
 
     template <typename expreT, typename ExprT>
-    MatrixShell(const MatrixBase<expreT,ExprT> &matexpr);
-    template <typename expreT, typename ExprT>
     MatrixShell &operator=(const MatrixBase<expreT,ExprT> &matexpr);
 
     int Elems() const
@@ -345,8 +339,6 @@ public:
         row_ = (row <= 0 ? cap / N : row);
     }
 
-    template <typename expreT, typename ExprT>
-    MatrixShell(const MatrixBase<expreT,ExprT> &matexpr);
     template <typename expreT, typename ExprT>
     MatrixShell &operator=(const MatrixBase<expreT,ExprT> &matexpr);
 

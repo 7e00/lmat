@@ -15,14 +15,14 @@ template <typename eT, int M, int N, typename opT, typename ExprT>
 class UnaryExpr;
 
 
-class Op;
-class OpAdd;
-class OpSub;
-class OpEMul; // element-wise multiplication
-class OpEDiv;
-class OpSMul; // matrix * scalar
-class OpMul; // matrix multiplication
-class OpTran; // transpose
+class MatOp;
+class MatOpAdd;
+class MatOpSub;
+class MatOpEMul; // element-wise multiplication
+class MatOpEDiv;
+class MatOpSMul; // matrix * scalar
+class MatOpMul; // matrix multiplication
+class MatOpTran; // transpose
 
 
 typedef double f64;
@@ -242,11 +242,10 @@ struct matrix_expr_type<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>> : public
                                                     || max<cols<ExprT1>::value,cols<ExprT2>::value>::result == 0
                                                     || N == max<cols<ExprT1>::value,cols<ExprT2>::value>::result)>
 {
-    //enum { value = min<min<1,matrix_expr_type<ExprT1>::value>::result, matrix_expr_type<ExprT2>::value>::result };
-    enum { value = 0 };
+    enum { value = min<min<1,matrix_expr_type<ExprT1>::value>::result, matrix_expr_type<ExprT2>::value>::result };
 };
 template <typename eT, int M, int N,  typename ExprT1, typename SeT1>
-struct matrix_expr_type<BinaryExpr<eT,M,N,OpSMul,ExprT1,Scalar<SeT1>>> : public 
+struct matrix_expr_type<BinaryExpr<eT,M,N,MatOpSMul,ExprT1,Scalar<SeT1>>> : public 
                                                     assert<(M == 0
                                                     || rows<ExprT1>::value == 0
                                                     || M == rows<ExprT1>::value)
@@ -257,7 +256,7 @@ struct matrix_expr_type<BinaryExpr<eT,M,N,OpSMul,ExprT1,Scalar<SeT1>>> : public
     enum { value = min<1, matrix_expr_type<ExprT1>::value>::result };
 };
 template <typename eT, int M, int N, typename ExprT1, typename ExprT2>
-struct matrix_expr_type<BinaryExpr<eT,M,N,OpMul,ExprT1,ExprT2>> : public
+struct matrix_expr_type<BinaryExpr<eT,M,N,MatOpMul,ExprT1,ExprT2>> : public
                                                     assert<(cols<ExprT1>::value == 0
                                                     || rows<ExprT2>::value == 0
                                                     || cols<ExprT1>::value == rows<ExprT2>::value)
@@ -282,7 +281,7 @@ struct matrix_expr_type<UnaryExpr<eT,M,N,opT,ExprT>> : public
     enum { value = 0 };
 };
 template <typename eT, int M, int N, typename ExprT>
-struct matrix_expr_type<UnaryExpr<eT,M,N,OpTran,ExprT>> : public
+struct matrix_expr_type<UnaryExpr<eT,M,N,MatOpTran,ExprT>> : public
                                                     assert<(M == 0
                                                     || cols<ExprT>::value == 0
                                                     || M == cols<ExprT>::value)
@@ -316,9 +315,9 @@ struct operator_num<opT,BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
     static const int value = operator_num<opT,ExprT1>::value + operator_num<opT,ExprT2>::value;
 };
 template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
-struct operator_num<Op,BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
+struct operator_num<MatOp,BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>>
 {
-    static const int value = operator_num<Op,ExprT1>::value + operator_num<Op,ExprT2>::value;
+    static const int value = operator_num<MatOp,ExprT1>::value + operator_num<MatOp,ExprT2>::value;
 };
 template <typename opT, typename eT, int M, int N, typename ExprT>
 struct operator_num<opT,UnaryExpr<eT,M,N,opT,ExprT>>
@@ -326,9 +325,9 @@ struct operator_num<opT,UnaryExpr<eT,M,N,opT,ExprT>>
     static const int value = operator_num<opT,ExprT>::value;
 };
 template <typename eT, int M, int N, typename opT, typename ExprT>
-struct operator_num<Op,UnaryExpr<eT,M,N,opT,ExprT>>
+struct operator_num<MatOp,UnaryExpr<eT,M,N,opT,ExprT>>
 {
-    static const int value = operator_num<Op,ExprT>::value;
+    static const int value = operator_num<MatOp,ExprT>::value;
 };
 
 } // end of namespace narutoacm::meta

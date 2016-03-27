@@ -1,5 +1,5 @@
-#ifndef NARUTOACM_OPFUNCS_H_
-#define NARUTOACM_OPFUNCS_H_
+#ifndef NARUTOACM_MATOP_H_
+#define NARUTOACM_MATOP_H_
 
 #include <iostream>
 #include <algorithm>
@@ -17,7 +17,7 @@ using meta::rows;
 using meta::cols;
 using util::SharedPool;
 
-class Op
+class MatOp
 {
     template <typename eT, int M, int N>
     friend class Matrix;
@@ -58,6 +58,16 @@ protected:
             }
             return pool_.Acquire();
         }
+
+        ptr_type GetResult()
+        {
+            return std::move(result_);
+        }
+
+        void StoreResult(ptr_type &a)
+        {
+            result_.swap(a);
+        }
         
         size_t Size() const
         {
@@ -67,6 +77,7 @@ protected:
     private:
         unsigned long blocksize_;
         SharedPool<Block> pool_;
+        ptr_type result_;
     };
 
 protected:
@@ -81,7 +92,7 @@ protected:
         return is_ref_to_mat(mat, expr.expr1_) || is_ref_to_mat(mat, expr.expr2_);
     }
     template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename ExprT3>
-    static bool is_ref_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,OpSMul,ExprT2,ExprT3> &expr)
+    static bool is_ref_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpSMul,ExprT2,ExprT3> &expr)
     {
         return is_ref_to_mat(mat, expr.expr1_);
     }
@@ -99,12 +110,12 @@ protected:
         return (ar == 2 ? ar : std::max(ar, relation_to_mat(mat, expr.expr2_)));
     }
     template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename ExprT3>
-    static int relation_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,OpSMul,ExprT2,ExprT3> &expr)
+    static int relation_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpSMul,ExprT2,ExprT3> &expr)
     {
         return relation_to_mat(mat, expr.expr1_);
     }
     template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename ExprT3>
-    static int relation_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,OpMul,ExprT2,ExprT3> &expr)
+    static int relation_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpMul,ExprT2,ExprT3> &expr)
     {
         return (is_ref_to_mat(mat, expr) ? 2 : 0);
     }
@@ -154,24 +165,47 @@ protected:
         
         opT::eval(res, expr, cache, relation);
     }
+    template <typename eT, int M, int N, typename eT1, typename ExprT1>
+    static void eval(const EntityMatrixBase<eT1,ExprT1> &expr, Cache &cache)
+    {
+        assert<(rows<ExprT1>::value == 0 || M == 0 || rows<ExprT1>::value == M) 
+        && (cols<ExprT1>::value == 0 || N == 0 || cols<ExprT1>::value == N)>();
+
+        auto block = cache.Acquire();
+        MatrixShell<eT,M,N> ms((eT *)(block->ptr), block->size/sizeof(eT));
+        eval(ms, expr, cache, 0);
+        cache.StoreResult(block);
+    }
+    template <typename eT, int M, int N, typename eT1, int M1, int N1, typename opT, typename ExprT1, typename ExprT2>
+    static void eval(const BinaryExpr<eT1,M1,N1,opT,ExprT1,ExprT2> &expr, Cache &cache)
+    {
+        assert<(rows<ExprT1>::value == 0 || M == 0 || rows<ExprT1>::value == M) 
+        && (cols<ExprT1>::value == 0 || N == 0 || cols<ExprT1>::value == N)>();
+
+        opT::template eval<eT,M,N>(expr, cache);
+    }
 
     template <typename eT, typename ExprT>
     static size_t get_cache_block_size(const EntityMatrixBase<eT,ExprT> &expr)
     {
-        return sizeof(eT) * expr.Elems();
+        size_t sz = sizeof(eT) * expr.Elems();
+        sz = (sz + sizeof(long) - 1) / sizeof(long) * sizeof(long);
+        return sz;
     }
     template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
     static size_t get_cache_block_size(const BinaryExpr<eT,M,N,opT,ExprT1,ExprT2> &expr)
     {
-        return std::max(sizeof(eT) * expr.Elems(), std::max(get_cache_block_size(expr.expr1_), get_cache_block_size(expr.expr2_)));
+        size_t sz = std::max(sizeof(eT) * expr.Elems(), std::max(get_cache_block_size(expr.expr1_), get_cache_block_size(expr.expr2_)));
+        sz = (sz + sizeof(long) - 1) / sizeof(long) * sizeof(long);
+        return sz;
     }
 
 protected:
     template <typename eT1, typename ExprT1, typename eT2, typename ExprT2>
-    Op(EntityMatrixBase<eT1,ExprT1> &mat, const MatrixBase<eT2,ExprT2> &expr)
+    MatOp(EntityMatrixBase<eT1,ExprT1> &mat, const MatrixBase<eT2,ExprT2> &expr, int relation = -1)
         : cache(get_cache_block_size(expr.Derived()))
     {
-        eval(mat, expr.Derived(), cache, -1);
+        eval(mat, expr.Derived(), cache, relation);
     }
 
 private:
@@ -182,13 +216,13 @@ template <typename eT, int M, int N>
 template <typename expreT, typename ExprT>
 Matrix<eT,M,N>::Matrix(const MatrixBase<expreT,ExprT> &matexpr)
 {
-    Op op(*this, matexpr.Derived());
+    MatOp op(*this, matexpr.Derived(), 0);
 }
 template <typename eT, int M, int N>
 template <typename expreT, typename ExprT>
 Matrix<eT,M,N> &Matrix<eT,M,N>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
 {
-    Op op(*this, matexpr.Derived());
+    MatOp op(*this, matexpr.Derived(), -1);
 }
 
 template <typename eT>
@@ -196,14 +230,14 @@ template <typename expreT, typename ExprT>
 Matrix<eT,0,0>::Matrix(const MatrixBase<expreT,ExprT> &matexpr)
     : data_(nullptr), capacity_(0), row_(0), col_(0)
 {
-    Op op(*this, matexpr.Derived());
+    MatOp op(*this, matexpr.Derived(), 0);
 }
 
 template <typename eT>
 template <typename expreT, typename ExprT>
 Matrix<eT,0,0> &Matrix<eT,0,0>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
 {
-    Op op(*this, matexpr.Derived());
+    MatOp op(*this, matexpr.Derived(), -1);
 }
 
 template <typename eT, int M>
@@ -211,14 +245,14 @@ template <typename expreT, typename ExprT>
 Matrix<eT,M,0>::Matrix(const MatrixBase<expreT,ExprT> &matexpr)
     : data_(nullptr), capacity_(0), col_(0)
 {
-    Op op(*this, matexpr.Derived());
+    MatOp op(*this, matexpr.Derived(), 0);
 }
 
 template <typename eT, int M>
 template <typename expreT, typename ExprT>
 Matrix<eT,M,0> &Matrix<eT,M,0>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
 {
-    Op op(*this, matexpr.Derived());
+    MatOp op(*this, matexpr.Derived(), -1);
 }
 
 template <typename eT, int N>
@@ -226,14 +260,42 @@ template <typename expreT, typename ExprT>
 Matrix<eT,0,N>::Matrix(const MatrixBase<expreT,ExprT> &matexpr)
     : data_(nullptr), capacity_(0), row_(0)
 {
-    Op op(*this, matexpr.Derived());
+    MatOp op(*this, matexpr.Derived(), 0);
 }
 
 template <typename eT, int N>
 template <typename expreT, typename ExprT>
 Matrix<eT,0,N> &Matrix<eT,0,N>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
 {
-    Op op(*this, matexpr.Derived());
+    MatOp op(*this, matexpr.Derived(), -1);
+}
+
+template <typename eT, int M, int N>
+template <typename expreT, typename ExprT>
+MatrixShell<eT,M,N> &MatrixShell<eT,M,N>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
+{
+    MatOp op(*this, matexpr.Derived(), -1);
+}
+
+template <typename eT>
+template <typename expreT, typename ExprT>
+MatrixShell<eT,0,0> &MatrixShell<eT,0,0>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
+{
+    MatOp op(*this, matexpr.Derived(), -1);
+}
+
+template <typename eT, int M>
+template <typename expreT, typename ExprT>
+MatrixShell<eT,M,0> &MatrixShell<eT,M,0>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
+{
+    MatOp op(*this, matexpr.Derived(), -1);
+}
+
+template <typename eT, int N>
+template <typename expreT, typename ExprT>
+MatrixShell<eT,0,N> &MatrixShell<eT,0,N>::operator=(const MatrixBase<expreT,ExprT> &matexpr)
+{
+    MatOp op(*this, matexpr.Derived(), -1);
 }
 
 } // end of namespace narutoacm
