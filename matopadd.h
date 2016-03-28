@@ -28,8 +28,14 @@ class MatOpAdd : public MatOp
     template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
     friend class BinaryExpr;
 
-protected:
+public:
+    template <typename eT, int M, int N, typename eT1, typename ExprT1, typename eT2, typename ExprT2>
+    static BinaryExpr<eT,M,N,MatOpAdd,ExprT1,ExprT2> GenBinaryExpr(const MatrixBase<eT1,ExprT1> &expr1, const MatrixBase<eT2,ExprT2> &expr2)
+    {
+        return BinaryExpr<eT,M,N,MatOpAdd,ExprT1,ExprT2>(expr1.Derived(), expr2.Derived());
+    }
 
+protected:
     template <typename eT, int M, int N, typename ExprT1, typename ExprT2>
     static int rows(const BinaryExpr<eT,M,N,MatOpAdd,ExprT1,ExprT2> &expr)
     {
@@ -262,10 +268,10 @@ inline const BinaryExpr<typename prio_type<expreT1,expreT2>::result_type,
                         MatOpAdd, ExprT1, ExprT2> operator+(const MatrixBase<expreT1,ExprT1> &expr1, const MatrixBase<expreT2,ExprT2> &expr2)
 {
     assert(expr1.Rows() == expr2.Rows() && expr1.Cols() == expr2.Cols());
-    return GenBinaryExpr<typename prio_type<expreT1,expreT2>::result_type,
+    return MatOpAdd::GenBinaryExpr<typename prio_type<expreT1,expreT2>::result_type,
                         max<meta::rows<ExprT1>::value,meta::rows<ExprT2>::value>::result,
-                        max<meta::cols<ExprT1>::value,meta::cols<ExprT2>::value>::result,
-                        MatOpAdd>(expr1.Derived(), expr2.Derived());
+                        max<meta::cols<ExprT1>::value,meta::cols<ExprT2>::value>::result>
+                        (expr1.Derived(), expr2.Derived());
 }
 
 } // end of namespace narutoacm

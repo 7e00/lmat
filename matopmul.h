@@ -26,6 +26,13 @@ class MatOpMul : public MatOp
     template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
     friend class BinaryExpr;
 
+public:
+    template <typename eT, int M, int N, typename eT1, typename ExprT1, typename eT2, typename ExprT2>
+    static BinaryExpr<eT,M,N,MatOpMul,ExprT1,ExprT2> GenBinaryExpr(const MatrixBase<eT1,ExprT1> &expr1, const MatrixBase<eT2,ExprT2> &expr2)
+    {
+        return BinaryExpr<eT,M,N,MatOpMul,ExprT1,ExprT2>(expr1.Derived(), expr2.Derived());
+    }
+
 protected:
 
     template <typename eT, int M, int N, typename ExprT1, typename ExprT2>
@@ -213,10 +220,10 @@ inline const BinaryExpr<typename prio_type<expreT1,expreT2>::result_type,
                         MatOpMul, ExprT1, ExprT2> operator*(const MatrixBase<expreT1,ExprT1> &expr1, const MatrixBase<expreT2,ExprT2> &expr2)
 {
     assert(expr1.Cols() == expr2.Rows());
-    return GenBinaryExpr<typename prio_type<expreT1,expreT2>::result_type,
+    return MatOpMul::GenBinaryExpr<typename prio_type<expreT1,expreT2>::result_type,
                         meta::rows<ExprT1>::value,
-                        meta::cols<ExprT2>::value,
-                        MatOpMul>(expr1.Derived(), expr2.Derived());
+                        meta::cols<ExprT2>::value>
+                        (expr1.Derived(), expr2.Derived());
 }
 
 } // end of namespace narutoacm

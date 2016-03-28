@@ -4,6 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include <assert.h>
+#include "scalar.h"
 #include "matshell.h"
 #include "matrix.h"
 #include "binaryexpr.h"
@@ -91,10 +92,15 @@ protected:
     {
         return is_ref_to_mat(mat, expr.expr1_) || is_ref_to_mat(mat, expr.expr2_);
     }
-    template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename ExprT3>
-    static bool is_ref_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpSMul,ExprT2,ExprT3> &expr)
+    template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename SeT>
+    static bool is_ref_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpSMul,ExprT2,Scalar<SeT>> &expr)
     {
         return is_ref_to_mat(mat, expr.expr1_);
+    }
+    template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename SeT>
+    static bool is_ref_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpSMul,Scalar<SeT>,ExprT2> &expr)
+    {
+        return is_ref_to_mat(mat, expr.expr2_);
     }
 
     // 0: no ref, 1: ref but ordered to mat, 2: ref and not ordered to mat
@@ -109,10 +115,15 @@ protected:
         int ar = relation_to_mat(mat, expr.expr1_);
         return (ar == 2 ? ar : std::max(ar, relation_to_mat(mat, expr.expr2_)));
     }
-    template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename ExprT3>
-    static int relation_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpSMul,ExprT2,ExprT3> &expr)
+    template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename SeT>
+    static int relation_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpSMul,ExprT2,Scalar<SeT>> &expr)
     {
         return relation_to_mat(mat, expr.expr1_);
+    }
+    template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename SeT>
+    static int relation_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpSMul,Scalar<SeT>,ExprT2> &expr)
+    {
+        return relation_to_mat(mat, expr.expr2_);
     }
     template <typename eT1, typename ExprT1, typename eT2, int M, int N, typename ExprT2, typename ExprT3>
     static int relation_to_mat(const EntityMatrixBase<eT1,ExprT1> &mat, const BinaryExpr<eT2,M,N,MatOpMul,ExprT2,ExprT3> &expr)
@@ -191,6 +202,16 @@ protected:
         size_t sz = sizeof(eT) * expr.Elems();
         sz = (sz + sizeof(long) - 1) / sizeof(long) * sizeof(long);
         return sz;
+    }
+    template <typename eT, int M, int N, typename ExprT1, typename SeT>
+    static size_t get_cache_block_size(const BinaryExpr<eT,M,N,MatOpSMul,ExprT1,Scalar<SeT>> &expr)
+    {
+        return get_cache_block_size(expr.expr1_);
+    }
+    template <typename eT, int M, int N, typename ExprT1, typename SeT>
+    static size_t get_cache_block_size(const BinaryExpr<eT,M,N,MatOpSMul,Scalar<SeT>,ExprT1> &expr)
+    {
+        return get_cache_block_size(expr.expr2_);
     }
     template <typename eT, int M, int N, typename opT, typename ExprT1, typename ExprT2>
     static size_t get_cache_block_size(const BinaryExpr<eT,M,N,opT,ExprT1,ExprT2> &expr)

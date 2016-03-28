@@ -2,12 +2,17 @@
 #define NARUTOACM_MAT_H_
 
 #include <assert.h>
+#include "matmeta.h"
 
 namespace narutoacm
 {
+
+using meta::helper::assert;
+using meta::is_allowed_t;
+
 // every matrix like object should herited this template base class
 template<typename eT, typename ExprT>
-class MatrixBase
+class MatrixBase : public assert<is_allowed_t<eT>::result>
 {
 public:
     inline const ExprT& Derived() const

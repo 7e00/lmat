@@ -3,6 +3,13 @@
 
 namespace narutoacm
 {
+template<typename eT, typename ExprT>
+class MatrixBase;
+template<typename eT, typename ExprT>
+class SimpleMatrixBase;
+template<typename eT, typename ExprT>
+class EntityMatrixBase;
+
 template <typename eT>
 class Scalar;
 template <typename eT, int M, int N>
@@ -23,6 +30,7 @@ class MatOpEDiv;
 class MatOpSMul; // matrix * scalar
 class MatOpMul; // matrix multiplication
 class MatOpTran; // transpose
+class MatOpPower; // only for square matrix
 
 
 typedef double f64;
@@ -79,6 +87,21 @@ template <typename eT1, typename eT2>
 struct select_type<false,eT1,eT2>
 {
     typedef eT2 result_type;
+};
+
+template <typename T1, typename T2>
+struct is_base_of
+{
+    static const bool result = (sizeof(helper_((T2 *)0)) == sizeof(s8));
+private:
+    static s8 helper_(T1 *);
+    template <typename T>
+    static s32 helper_(T *);
+};
+template <typename T>
+struct is_base_of<T,T>
+{
+    static const bool result = false;
 };
 
 } // end of namespace narutoacm::meta::helper
@@ -146,6 +169,22 @@ struct inferior_type
 using helper::assert;
 using helper::max;
 using helper::min;
+using helper::is_base_of;
+using helper::is_same_type;
+
+template <typename eT>
+struct is_allowed_t { static const bool result = false; };
+template <> struct is_allowed_t<u8> { static const bool result = true; };
+template <> struct is_allowed_t<s8> { static const bool result = true; };
+template <> struct is_allowed_t<u16> { static const bool result = true; };
+template <> struct is_allowed_t<s16> { static const bool result = true; };
+template <> struct is_allowed_t<u32> { static const bool result = true; };
+template <> struct is_allowed_t<s32> { static const bool result = true; };
+template <> struct is_allowed_t<u64> { static const bool result = true; };
+template <> struct is_allowed_t<s64> { static const bool result = true; };
+template <> struct is_allowed_t<f32> { static const bool result = true; };
+template <> struct is_allowed_t<f64> { static const bool result = true; };
+
 
 template <typename ExprT>
 struct element_type;
@@ -173,6 +212,12 @@ template <typename eT, int M, int N, typename opT, typename ExprT>
 struct element_type<UnaryExpr<eT,M,N,opT,ExprT>>
 {
     typedef eT type;
+};
+
+template <typename ExprT>
+struct is_matrix_expr
+{
+    static const bool result = is_base_of<MatrixBase<typename element_type<ExprT>::type,ExprT>, ExprT>::result;
 };
 
 template <typename ExprT>
@@ -240,12 +285,24 @@ struct matrix_expr_type<BinaryExpr<eT,M,N,opT,ExprT1,ExprT2>> : public
                                                     || cols<ExprT1>::value == cols<ExprT2>::value)
                                                     && (N == 0
                                                     || max<cols<ExprT1>::value,cols<ExprT2>::value>::result == 0
-                                                    || N == max<cols<ExprT1>::value,cols<ExprT2>::value>::result)>
+                                                    || N == max<cols<ExprT1>::value,cols<ExprT2>::value>::result)
+                                                    && !is_same_type<opT,MatOpSMul>::result>
 {
     enum { value = min<min<1,matrix_expr_type<ExprT1>::value>::result, matrix_expr_type<ExprT2>::value>::result };
 };
-template <typename eT, int M, int N,  typename ExprT1, typename SeT1>
+template <typename eT, int M, int N, typename ExprT1, typename SeT1>
 struct matrix_expr_type<BinaryExpr<eT,M,N,MatOpSMul,ExprT1,Scalar<SeT1>>> : public 
+                                                    assert<(M == 0
+                                                    || rows<ExprT1>::value == 0
+                                                    || M == rows<ExprT1>::value)
+                                                    && (N == 0
+                                                    || cols<ExprT1>::value == 0
+                                                    || N == cols<ExprT1>::value)>
+{
+    enum { value = min<1, matrix_expr_type<ExprT1>::value>::result };
+};
+template <typename eT, int M, int N, typename SeT1, typename ExprT1>
+struct matrix_expr_type<BinaryExpr<eT,M,N,MatOpSMul,Scalar<SeT1>,ExprT1>> : public 
                                                     assert<(M == 0
                                                     || rows<ExprT1>::value == 0
                                                     || M == rows<ExprT1>::value)
