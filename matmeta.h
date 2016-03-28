@@ -92,11 +92,12 @@ struct select_type<false,eT1,eT2>
 template <typename T1, typename T2>
 struct is_base_of
 {
-    static const bool result = (sizeof(helper_((T2 *)0)) == sizeof(s8));
 private:
-    static s8 helper_(T1 *);
-    template <typename T>
-    static s32 helper_(T *);
+    static s8 helper_(const T1 *);
+    static s32 helper_(...);
+
+public:
+    static const bool result = (sizeof(helper_((T2 *)0)) == sizeof(s8));
 };
 template <typename T>
 struct is_base_of<T,T>
