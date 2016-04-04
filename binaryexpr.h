@@ -79,6 +79,9 @@ protected:
         : expr1_(expr1), expr2_(expr2)
     {
     }
+    
+    template <typename T>
+    BinaryExpr &operator=(const T &) = delete;
 
 public:
     int Elems() const
@@ -112,6 +115,9 @@ protected:
     {
         col_ = opT::cols(*this);
     }
+    
+    template <typename T>
+    BinaryExpr &operator=(const T &) = delete;
 
 public:
     int Elems() const
@@ -145,6 +151,9 @@ protected:
     {
         row_ = opT::rows(*this);
     }
+    
+    template <typename T>
+    BinaryExpr &operator=(const T &) = delete;
 
 public:
     int Elems() const
@@ -179,6 +188,9 @@ protected:
         row_ = opT::rows(*this);
         col_ = opT::cols(*this);
     }
+    
+    template <typename T>
+    BinaryExpr &operator=(const T &) = delete;
 
 public:
     int Elems() const
